@@ -1,3 +1,23 @@
+"""
+DAG : weather_pipeline
+======================
+TP 2A — Préparer une ingestion API météo
+
+Workflow :
+    extract_weather  →  transform_weather  →  load_weather
+
+Séparation des responsabilités :
+    extract_weather   : appel API uniquement — ne transforme pas
+    transform_weather : sélection et normalisation des champs — n'appelle pas l'API
+    load_weather      : écriture en base — ne fait ni appel ni transformation
+
+Passage d'information entre tâches :
+    extract   → XCom clé "raw_weather"       → transform
+    transform → XCom clé "clean_weather"     → load
+
+Les XComs transportent de petits objets (3 villes × quelques champs).
+"""
+
 import logging
 from datetime import datetime, timedelta
 
@@ -9,8 +29,7 @@ from airflow.operators.python import PythonOperator
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Configuration des villes
-# Coordonnées GPS nécessaires pour l'API Open-Meteo
+# Configuration
 # ---------------------------------------------------------------------------
 
 CITIES = [
@@ -19,7 +38,13 @@ CITIES = [
     {"name": "Marseille", "latitude": 43.2965, "longitude": 5.3698},
 ]
 
+# Champs récupérés depuis l'API Open-Meteo
+# Référence : https://open-meteo.com/en/docs
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+API_CURRENT_FIELDS = "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation"
+
+# Champs retenus pour la table cible (justification dans le README)
+REQUIRED_FIELDS = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "precipitation"]
 
 DEFAULT_ARGS = {
     "owner": "data-team",
@@ -30,155 +55,148 @@ DEFAULT_ARGS = {
 }
 
 # ---------------------------------------------------------------------------
-# Fonctions métier — une fonction = une responsabilité
+# Fonctions métier
 # ---------------------------------------------------------------------------
 
-def fetch_weather() -> None:
+def extract_weather(**context) -> None:
     """
-    Étape 1 : Récupère les données météo brutes depuis l'API Open-Meteo.
+    Étape 1 — Extraction : appel API Open-Meteo pour chaque ville.
 
-    Rôle : appel réseau uniquement. Cette fonction ne transforme pas
-    et ne valide pas les données.
-
-    API utilisée : https://open-meteo.com (gratuite, sans clé)
-    Champs récupérés :
-      - temperature_2m        : température à 2m du sol (°C)
-      - relative_humidity_2m  : humidité relative à 2m (%)
-      - wind_speed_10m        : vitesse du vent à 10m (km/h)
+    Responsabilité unique : récupérer la matière première brute.
+    Cette fonction ne sélectionne pas les champs et ne transforme pas.
     """
-    logger.info("Démarrage de la récupération météo — %d villes", len(CITIES))
+    logger.info("Démarrage de l'extraction — %d villes à interroger", len(CITIES))
+
+    raw_results = []
 
     for city in CITIES:
         params = {
             "latitude": city["latitude"],
             "longitude": city["longitude"],
-            "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
+            "current": API_CURRENT_FIELDS,
         }
-
-        logger.info("Appel API pour %s (lat=%.4f, lon=%.4f)", city["name"], city["latitude"], city["longitude"])
-
-        response = requests.get(OPEN_METEO_URL, params=params, timeout=10)
-
-        # Lève une exception si le statut HTTP est une erreur (4xx, 5xx)
-        response.raise_for_status()
-
-        data = response.json()
-        current = data.get("current", {})
 
         logger.info(
-            "Données reçues pour %s : température=%.1f°C  humidité=%d%%  vent=%.1f km/h",
-            city["name"],
-            current.get("temperature_2m", float("nan")),
-            current.get("relative_humidity_2m", -1),
-            current.get("wind_speed_10m", float("nan")),
+            "Appel API Open-Meteo pour %s (lat=%.4f, lon=%.4f)",
+            city["name"], city["latitude"], city["longitude"],
         )
 
-    logger.info("Récupération terminée pour %d villes", len(CITIES))
-
-
-def validate_weather() -> None:
-    """
-    Étape 2 : Vérifie que les données récupérées sont complètes et cohérentes.
-
-    Rôle : contrôle qualité uniquement. Cette fonction ne charge pas en base
-    et ne contacte pas l'API.
-
-    Règles vérifiées :
-      - Les champs obligatoires sont présents dans la réponse API.
-      - La température est dans une plage réaliste (−50 °C à 60 °C).
-      - L'humidité est entre 0 % et 100 %.
-      - La vitesse du vent est positive.
-    """
-    logger.info("Démarrage de la validation des données météo")
-
-    required_fields = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
-
-    for city in CITIES:
-        params = {
-            "latitude": city["latitude"],
-            "longitude": city["longitude"],
-            "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
-        }
-
         response = requests.get(OPEN_METEO_URL, params=params, timeout=10)
+
+        # Lève HTTPError si statut 4xx ou 5xx
         response.raise_for_status()
 
-        current = response.json().get("current", {})
+        raw_current = response.json().get("current", {})
 
-        # Vérification des champs obligatoires
-        missing = [f for f in required_fields if f not in current]
+        logger.info(
+            "Réponse brute reçue pour %s : %s",
+            city["name"], raw_current,
+        )
+
+        raw_results.append({
+            "city": city["name"],
+            "raw": raw_current,
+        })
+
+    logger.info("Extraction terminée — %d villes récupérées", len(raw_results))
+
+    # Transmission à la tâche suivante via XCom
+    # Volume : 3 villes × ~5 champs = objet léger, usage XCom justifié
+    context["ti"].xcom_push(key="raw_weather", value=raw_results)
+
+
+def transform_weather(**context) -> None:
+    """
+    Étape 2 — Transformation : sélection et normalisation des champs utiles.
+
+    Responsabilité unique : préparer la donnée pour la table cible.
+    Cette fonction ne contacte pas l'API et ne charge pas en base.
+    """
+    logger.info("Démarrage de la transformation")
+
+    # Récupération des données brutes produites par extract_weather
+    raw_results = context["ti"].xcom_pull(
+        task_ids="extract_weather",
+        key="raw_weather",
+    )
+
+    if not raw_results:
+        raise ValueError("Aucune donnée brute disponible — la tâche extract_weather a peut-être échoué")
+
+    clean_results = []
+
+    for entry in raw_results:
+        city = entry["city"]
+        raw = entry["raw"]
+
+        # Vérification que les champs attendus sont présents dans la réponse
+        missing = [f for f in REQUIRED_FIELDS if f not in raw]
         if missing:
-            raise ValueError("Champs manquants pour %s : %s" % (city["name"], missing))
+            raise ValueError("Champs manquants pour %s : %s" % (city, missing))
 
-        temperature = current["temperature_2m"]
-        humidity    = current["relative_humidity_2m"]
-        wind_speed  = current["wind_speed_10m"]
-
-        # Vérification des plages métier
-        if not (-50 <= temperature <= 60):
-            raise ValueError(
-                "Température hors plage pour %s : %.1f°C" % (city["name"], temperature)
-            )
-
-        if not (0 <= humidity <= 100):
-            raise ValueError(
-                "Humidité hors plage pour %s : %d%%" % (city["name"], humidity)
-            )
-
-        if wind_speed < 0:
-            raise ValueError(
-                "Vitesse du vent négative pour %s : %.1f km/h" % (city["name"], wind_speed)
-            )
+        # Sélection et renommage explicite des champs pour la table cible
+        # On renomme pour que le nom de colonne soit clair et indépendant
+        # des conventions de l'API source
+        clean_record = {
+            "city":               city,
+            "temperature_celsius": raw["temperature_2m"],
+            "humidity_pct":        raw["relative_humidity_2m"],
+            "wind_speed_kmh":      raw["wind_speed_10m"],
+            "precipitation_mm":    raw["precipitation"],
+            "fetched_at":          raw.get("time", datetime.utcnow().isoformat()),
+        }
 
         logger.info(
-            "Validation OK — %s : %.1f°C | %d%% | %.1f km/h",
-            city["name"], temperature, humidity, wind_speed,
+            "Transformation OK — %s : %.1f°C | %d%% | %.1f km/h | %.1f mm",
+            city,
+            clean_record["temperature_celsius"],
+            clean_record["humidity_pct"],
+            clean_record["wind_speed_kmh"],
+            clean_record["precipitation_mm"],
         )
 
-    logger.info("Validation terminée : %d enregistrements valides", len(CITIES))
+        clean_results.append(clean_record)
+
+    logger.info("Transformation terminée — %d enregistrements prêts", len(clean_results))
+
+    # Transmission à la tâche suivante via XCom
+    context["ti"].xcom_push(key="clean_weather", value=clean_results)
 
 
-def load_weather() -> None:
+def load_weather(**context) -> None:
     """
-    Étape 3 : Charge les données validées en base de données.
+    Étape 3 — Chargement : écriture des données nettoyées en base.
 
-    Rôle : écriture uniquement. Cette fonction ne récupère pas de données
-    depuis l'API et ne fait pas de validation métier.
-
-    Schéma cible attendu :
-      CREATE TABLE weather_data (
-          city        TEXT,
-          temperature FLOAT,
-          humidity    INT,
-          wind_speed  FLOAT,
-          fetched_at  TIMESTAMP
-      );
+    Responsabilité unique : écriture uniquement.
+    Cette fonction ne contacte pas l'API et ne fait pas de transformation.
     """
     logger.info("Démarrage du chargement en base de données")
 
-    for city in CITIES:
-        params = {
-            "latitude": city["latitude"],
-            "longitude": city["longitude"],
-            "current": "temperature_2m,relative_humidity_2m,wind_speed_10m",
-        }
+    # Récupération des données transformées produites par transform_weather
+    clean_results = context["ti"].xcom_pull(
+        task_ids="transform_weather",
+        key="clean_weather",
+    )
 
-        response = requests.get(OPEN_METEO_URL, params=params, timeout=10)
-        response.raise_for_status()
+    if not clean_results:
+        raise ValueError("Aucune donnée propre disponible — la tâche transform_weather a peut-être échoué")
 
-        current = response.json().get("current", {})
-
-        # Simulation de l'écriture — en production : INSERT réel
+    for record in clean_results:
+        # Simulation de l'INSERT
         logger.info(
-            "[SIMULATION INSERT] weather_data — city=%s  temp=%.1f  humidity=%d  wind=%.1f  at=%s",
-            city["name"],
-            current.get("temperature_2m"),
-            current.get("relative_humidity_2m"),
-            current.get("wind_speed_10m"),
-            datetime.utcnow().isoformat(),
+            "[SIMULATION INSERT] weather_data — "
+            "city=%s | temp=%.1f°C | humidity=%d%% | wind=%.1f km/h | precip=%.1f mm | at=%s",
+            record["city"],
+            record["temperature_celsius"],
+            record["humidity_pct"],
+            record["wind_speed_kmh"],
+            record["precipitation_mm"],
+            record["fetched_at"],
         )
 
-    logger.info("Chargement terminé : %d lignes insérées en base", len(CITIES))
+    logger.info(
+        "Chargement terminé — %d lignes insérées en base", len(clean_results)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -187,24 +205,24 @@ def load_weather() -> None:
 
 with DAG(
     dag_id="weather_pipeline",
-    description="Récupération quotidienne de la météo via Open-Meteo — TP 2",
+    description="Ingestion quotidienne météo Open-Meteo — TP 2A",
     schedule="0 6 * * *",       # tous les jours à 06h00 UTC
     start_date=datetime(2024, 1, 1),
-    catchup=False,               # ne pas rejouer les runs passés manquants
+    catchup=False,
     default_args=DEFAULT_ARGS,
-    tags=["meteo", "tp2"],
+    tags=["meteo", "tp2a"],
 ) as dag:
 
-    # ── Tâche 1 : Récupération ──────────────────────────────────────────────
-    task_fetch = PythonOperator(
-        task_id="fetch_weather",
-        python_callable=fetch_weather,
+    # ── Tâche 1 : Extraction ────────────────────────────────────────────────
+    task_extract = PythonOperator(
+        task_id="extract_weather",
+        python_callable=extract_weather,
     )
 
-    # ── Tâche 2 : Validation ────────────────────────────────────────────────
-    task_validate = PythonOperator(
-        task_id="validate_weather",
-        python_callable=validate_weather,
+    # ── Tâche 2 : Transformation ────────────────────────────────────────────
+    task_transform = PythonOperator(
+        task_id="transform_weather",
+        python_callable=transform_weather,
     )
 
     # ── Tâche 3 : Chargement ────────────────────────────────────────────────
@@ -213,6 +231,6 @@ with DAG(
         python_callable=load_weather,
     )
 
-    # ── Dépendances (ordre d'exécution) ─────────────────────────────────────
-    # fetch_weather → validate_weather → load_weather
-    task_fetch >> task_validate >> task_load
+    # ── Dépendances ─────────────────────────────────────────────────────────
+    # extract_weather → transform_weather → load_weather
+    task_extract >> task_transform >> task_load
