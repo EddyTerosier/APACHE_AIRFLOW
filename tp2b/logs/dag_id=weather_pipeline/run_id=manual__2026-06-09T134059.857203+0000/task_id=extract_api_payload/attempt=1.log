@@ -1,0 +1,26 @@
+[2026-06-09T13:41:00.660+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-09T13:41:00.690+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-09T13:40:59.857203+00:00 [queued]>
+[2026-06-09T13:41:00.697+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-09T13:40:59.857203+00:00 [queued]>
+[2026-06-09T13:41:00.698+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 2
+[2026-06-09T13:41:00.709+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): extract_api_payload> on 2026-06-09 13:40:59.857203+00:00
+[2026-06-09T13:41:00.716+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=860) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-09T13:41:00.715+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'extract_api_payload', 'manual__2026-06-09T13:40:59.857203+00:00', '--job-id', '13', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpedyn41q5']
+[2026-06-09T13:41:00.717+0000] {standard_task_runner.py:63} INFO - Started process 861 to run task
+[2026-06-09T13:41:00.717+0000] {standard_task_runner.py:91} INFO - Job 13: Subtask extract_api_payload
+[2026-06-09T13:41:00.763+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-09T13:40:59.857203+00:00 [running]> on host da89a81492ed
+[2026-06-09T13:41:00.839+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='extract_api_payload' AIRFLOW_CTX_EXECUTION_DATE='2026-06-09T13:40:59.857203+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-06-09T13:40:59.857203+00:00'
+[2026-06-09T13:41:00.840+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-09T13:41:00.858+0000] {weather_pipeline.py:43} INFO - Extraction démarrée — 3 villes
+[2026-06-09T13:41:00.859+0000] {weather_pipeline.py:52} INFO - Appel API Open-Meteo pour Paris
+[2026-06-09T13:41:00.996+0000] {weather_pipeline.py:62} INFO - Payload reçu pour Paris
+[2026-06-09T13:41:00.997+0000] {weather_pipeline.py:52} INFO - Appel API Open-Meteo pour Lyon
+[2026-06-09T13:41:01.087+0000] {weather_pipeline.py:62} INFO - Payload reçu pour Lyon
+[2026-06-09T13:41:01.087+0000] {weather_pipeline.py:52} INFO - Appel API Open-Meteo pour Marseille
+[2026-06-09T13:41:01.172+0000] {weather_pipeline.py:62} INFO - Payload reçu pour Marseille
+[2026-06-09T13:41:01.173+0000] {weather_pipeline.py:64} INFO - Extraction terminée — 3 payloads
+[2026-06-09T13:41:01.188+0000] {python.py:237} INFO - Done. Returned value was: None
+[2026-06-09T13:41:01.189+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-09T13:41:01.197+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=weather_pipeline, task_id=extract_api_payload, run_id=manual__2026-06-09T13:40:59.857203+00:00, execution_date=20260609T134059, start_date=20260609T134100, end_date=20260609T134101
+[2026-06-09T13:41:01.211+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-06-09T13:41:01.234+0000] {taskinstance.py:3498} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-06-09T13:41:01.235+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
