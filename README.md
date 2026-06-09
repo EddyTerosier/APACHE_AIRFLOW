@@ -40,43 +40,91 @@ GET https://api.open-meteo.com/v1/forecast
 }
 ```
 
-L'API retourne de nombreux autres champs (pression, nuages, rayonnement UV...).
+L'API retourne de nombreux autres champs (pression, UV, couverture nuageuse...).
 Seuls les champs utiles au besoin métier sont conservés après transformation.
 
 ---
 
-## Champs retenus et justification
+## Champs retenus — explication des choix
 
-| Champ source API          | Champ table cible       | Unité  | Justification                                      |
-|---------------------------|-------------------------|--------|----------------------------------------------------|
-| `temperature_2m`          | `temperature_celsius`   | °C     | Indicateur météo principal, utile pour tout besoin métier |
-| `relative_humidity_2m`    | `humidity_pct`          | %      | Complète la température pour le ressenti réel      |
-| `wind_speed_10m`          | `wind_speed_kmh`        | km/h   | Pertinent pour les impacts opérationnels           |
-| `precipitation`           | `precipitation_mm`      | mm     | Indicateur de précipitations actuelles             |
-| *(ajouté en transform)*   | `fetched_at`            | —      | Horodatage de la mesure, indispensable pour la traçabilité en base |
+Après appel à l'API, la tâche `transform_weather` ne conserve que 4 champs,
+auxquels elle ajoute un horodatage de traçabilité :
 
-**Champs non retenus :** pression atmosphérique, UV index, couverture nuageuse —
-non demandés dans le besoin initial, ajoutables facilement via `API_CURRENT_FIELDS`.
+| Champ source API         | Champ table cible       | Unité | Pourquoi ce champ a été retenu                                 |
+|--------------------------|-------------------------|-------|----------------------------------------------------------------|
+| `temperature_2m`         | `temperature_celsius`   | °C    | Indicateur météo central, utile pour tout usage métier         |
+| `relative_humidity_2m`   | `humidity_pct`          | %     | Complète la température pour le ressenti réel                  |
+| `wind_speed_10m`         | `wind_speed_kmh`        | km/h  | Pertinent pour tout impact opérationnel lié au vent            |
+| `precipitation`          | `precipitation_mm`      | mm    | Indique les précipitations actuelles                           |
+| *(ajouté)*               | `fetched_at`            | —     | Horodatage de la mesure — indispensable pour la traçabilité    |
+
+**Champs écartés :** pression atmosphérique, UV index, couverture nuageuse —
+non nécessaires pour le besoin initial. Ils restent faciles à ajouter
+via `API_CURRENT_FIELDS` dans le DAG.
+
+Les colonnes sont aussi **renommées** pour que la table cible soit
+indépendante des conventions de nommage de l'API source
+(ex. `temperature_2m` → `temperature_celsius`).
 
 ---
 
-## Ce qu'on en a fait — du brut au structuré
+## Aperçu des données préparées
+
+Voici ce que produit la tâche `transform_weather` et ce qui est transmis
+à `load_weather` via XCom (clé `clean_weather`) :
+
+```json
+[
+  {
+    "city": "Paris",
+    "temperature_celsius": 18.4,
+    "humidity_pct": 72,
+    "wind_speed_kmh": 12.5,
+    "precipitation_mm": 0.0,
+    "fetched_at": "2026-06-01T08:00"
+  },
+  {
+    "city": "Lyon",
+    "temperature_celsius": 22.1,
+    "humidity_pct": 58,
+    "wind_speed_kmh": 8.3,
+    "precipitation_mm": 0.0,
+    "fetched_at": "2026-06-01T08:00"
+  },
+  {
+    "city": "Marseille",
+    "temperature_celsius": 25.6,
+    "humidity_pct": 48,
+    "wind_speed_kmh": 21.0,
+    "precipitation_mm": 0.0,
+    "fetched_at": "2026-06-01T08:00"
+  }
+]
+```
+
+Ce sont exactement les valeurs qui seront insérées ligne par ligne
+dans la table `weather_data`.
+
+---
+
+## Ce qu'on a fait de la donnée — du brut au structuré
 
 ```
-API Open-Meteo (JSON brut)
+API Open-Meteo (JSON brut, tous les champs)
         ↓
   extract_weather        → récupère la réponse brute pour chaque ville
-        ↓  [XCom: raw_weather]
-  transform_weather      → sélectionne les champs, renomme les colonnes,
-                           ajoute l'horodatage
-        ↓  [XCom: clean_weather]
-  load_weather           → simule l'INSERT en base (prêt pour psycopg2)
+                           pousse le résultat en XCom (clé : raw_weather)
+        ↓
+  transform_weather      → sélectionne les 4 champs utiles
+                           renomme les colonnes pour la table cible
+                           ajoute l'horodatage fetched_at
+                           pousse le résultat en XCom (clé : clean_weather)
+        ↓
+  load_weather           → reçoit les données propres
+                           simule l'INSERT en base (prêt pour psycopg2)
         ↓
   Table weather_data (PostgreSQL)
 ```
-
-La séparation extract / transform / load garantit que chaque tâche a
-une responsabilité unique et peut être relancée indépendamment en cas d'échec.
 
 ---
 
@@ -86,22 +134,20 @@ une responsabilité unique et peut être relancée indépendamment en cas d'éch
 extract_weather  →  transform_weather  →  load_weather
 ```
 
-| Tâche              | Rôle                                                              |
-|--------------------|-------------------------------------------------------------------|
-| `extract_weather`  | Appel API Open-Meteo pour chaque ville, pousse le brut en XCom   |
-| `transform_weather`| Sélectionne les champs utiles, renomme, structure pour la table   |
-| `load_weather`     | Simule l'INSERT en base (logs), prêt pour un vrai connecteur      |
+| Tâche               | Rôle                                                              |
+|---------------------|-------------------------------------------------------------------|
+| `extract_weather`   | Appel API Open-Meteo, pousse la réponse brute en XCom             |
+| `transform_weather` | Sélectionne, renomme et structure les champs pour la table cible  |
+| `load_weather`      | Simule l'INSERT en base, prêt pour un vrai connecteur             |
 
 ---
 
 ## Passage de données entre tâches (XCom)
 
-Les tâches s'échangent de petits objets via XCom :
-
-| Clé XCom        | Produite par       | Consommée par      | Contenu                              |
-|-----------------|--------------------|--------------------|--------------------------------------|
-| `raw_weather`   | `extract_weather`  | `transform_weather`| Liste brute des réponses API         |
-| `clean_weather` | `transform_weather`| `load_weather`     | Liste des enregistrements nettoyés   |
+| Clé XCom        | Produite par        | Consommée par       | Contenu                           |
+|-----------------|---------------------|---------------------|-----------------------------------|
+| `raw_weather`   | `extract_weather`   | `transform_weather` | Liste brute des réponses API      |
+| `clean_weather` | `transform_weather` | `load_weather`      | Liste des enregistrements propres |
 
 > XCom est utilisé ici parce que le volume est faible (3 villes × 5 champs).
 > Pour un volume important, on écrirait dans un fichier ou MinIO et on
@@ -147,9 +193,6 @@ docker compose up -d
 cp weather_pipeline_dag.py ./dags/
 ```
 
-Airflow détecte automatiquement les fichiers déposés dans `./dags/`
-(délai de quelques secondes à une minute).
-
 ---
 
 ## Interface web
@@ -165,11 +208,11 @@ Login : `admin` / `admin`
 **Consulter les logs d'une tâche :**
 1. Cliquer sur un run dans la vue "Grid"
 2. Cliquer sur une tâche (ex. `extract_weather`)
-3. Ouvrir l'onglet "Logs"
+3. Onglet "Logs"
 
 **Consulter les XComs d'un run :**
-1. Cliquer sur un run
-2. Onglet "XCom" sur une task instance
+1. Cliquer sur une task instance
+2. Onglet "XCom"
 
 ---
 
@@ -190,24 +233,6 @@ weather_pipeline/
 ## Arrêter l'environnement
 
 ```bash
-# Arrêter (conserve les données)
-docker compose down
-
-# Arrêter et tout supprimer
-docker compose down -v
-```
-
----
-### Si `requests` est manquant
-
-Créer un fichier `requirements.txt` à la racine :
-```
-requests
-```
-Puis ajouter dans le service `airflow-common` du `docker-compose.yml` :
-```yaml
-volumes:
-  - ./requirements.txt:/requirements.txt
-environment:
-  _PIP_ADDITIONAL_REQUIREMENTS: "requests"
+docker compose down        # conserve les données
+docker compose down -v     # supprime tout
 ```
