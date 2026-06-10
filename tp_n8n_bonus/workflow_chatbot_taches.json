@@ -1,0 +1,237 @@
+{
+  "name": "Chatbot Gestionnaire de taches",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "chatbot-taches-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyse le message et en extrait la commande et l'argument.\n// Commandes supportees : /add <texte>, /list, /done <id>.\nconst message = $input.first().json.message;\nconst text = (message.text || '').trim();\nconst chatId = message.chat.id;\n\nconst spaceIndex = text.indexOf(' ');\nconst command = (spaceIndex === -1 ? text : text.slice(0, spaceIndex)).toLowerCase();\nconst argument = spaceIndex === -1 ? '' : text.slice(spaceIndex + 1).trim();\n\nreturn [{ json: { chatId, command, argument } }];"
+      },
+      "id": "parse-command",
+      "name": "Analyser la commande",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/add",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "add"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/list",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/done",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "done"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-command",
+      "name": "Router la commande",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "mode": "list", "value": "public" },
+        "table": { "__rl": true, "mode": "list", "value": "tasks" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chatId }}",
+            "label": "={{ $json.argument }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "db-insert",
+      "name": "Ajouter en base",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [920, 200],
+      "credentials": {
+        "postgres": { "id": "2", "name": "Postgres tasks" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, label FROM tasks WHERE chat_id = {{ $json.chatId }} AND is_done = FALSE ORDER BY created_at;",
+        "options": {}
+      },
+      "id": "db-select",
+      "name": "Lister les taches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [920, 400],
+      "credentials": {
+        "postgres": { "id": "2", "name": "Postgres tasks" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET is_done = TRUE, done_at = NOW() WHERE id = {{ $json.argument }} AND chat_id = {{ $json.chatId }} RETURNING label;",
+        "options": {}
+      },
+      "id": "db-update",
+      "name": "Terminer une tache",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [920, 600],
+      "credentials": {
+        "postgres": { "id": "2", "name": "Postgres tasks" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construit le texte listant les taches en cours.\nconst rows = $input.all();\nconst chatId = $('Analyser la commande').first().json.chatId;\n\nif (rows.length === 0) {\n  return [{ json: { chatId, reply: 'Aucune tache en cours.' } }];\n}\n\nconst lines = rows.map(r => `#${r.json.id} — ${r.json.label}`);\nconst reply = 'Vos taches en cours :\\n' + lines.join('\\n');\nreturn [{ json: { chatId, reply } }];"
+      },
+      "id": "format-list",
+      "name": "Formater la liste",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare la confirmation d'ajout.\nconst data = $('Analyser la commande').first().json;\nconst reply = `Tache ajoutee : ${data.argument}`;\nreturn [{ json: { chatId: data.chatId, reply } }];"
+      },
+      "id": "format-add",
+      "name": "Confirmer l'ajout",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare la confirmation (ou l'echec) de cloture d'une tache.\nconst chatId = $('Analyser la commande').first().json.chatId;\nconst rows = $input.all();\n\nif (rows.length === 0) {\n  return [{ json: { chatId, reply: 'Aucune tache trouvee avec cet identifiant.' } }];\n}\n\nconst reply = `Tache terminee : ${rows[0].json.label}`;\nreturn [{ json: { chatId, reply } }];"
+      },
+      "id": "format-done",
+      "name": "Confirmer la cloture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Message d'aide pour toute commande non reconnue.\nconst chatId = $('Analyser la commande').first().json.chatId;\nconst reply = [\n  'Commandes disponibles :',\n  '/add <texte>  — ajouter une tache',\n  '/list         — voir les taches en cours',\n  '/done <id>    — marquer une tache comme terminee'\n].join('\\n');\nreturn [{ json: { chatId, reply } }];"
+      },
+      "id": "format-help",
+      "name": "Aide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 780]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.reply }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-send",
+      "name": "Repondre sur Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1400, 400],
+      "credentials": {
+        "telegramApi": { "id": "1", "name": "Telegram account" }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Analyser la commande", "type": "main", "index": 0 }]]
+    },
+    "Analyser la commande": {
+      "main": [[{ "node": "Router la commande", "type": "main", "index": 0 }]]
+    },
+    "Router la commande": {
+      "main": [
+        [{ "node": "Ajouter en base", "type": "main", "index": 0 }],
+        [{ "node": "Lister les taches", "type": "main", "index": 0 }],
+        [{ "node": "Terminer une tache", "type": "main", "index": 0 }],
+        [{ "node": "Aide", "type": "main", "index": 0 }]
+      ]
+    },
+    "Ajouter en base": {
+      "main": [[{ "node": "Confirmer l'ajout", "type": "main", "index": 0 }]]
+    },
+    "Lister les taches": {
+      "main": [[{ "node": "Formater la liste", "type": "main", "index": 0 }]]
+    },
+    "Terminer une tache": {
+      "main": [[{ "node": "Confirmer la cloture", "type": "main", "index": 0 }]]
+    },
+    "Confirmer l'ajout": {
+      "main": [[{ "node": "Repondre sur Telegram", "type": "main", "index": 0 }]]
+    },
+    "Formater la liste": {
+      "main": [[{ "node": "Repondre sur Telegram", "type": "main", "index": 0 }]]
+    },
+    "Confirmer la cloture": {
+      "main": [[{ "node": "Repondre sur Telegram", "type": "main", "index": 0 }]]
+    },
+    "Aide": {
+      "main": [[{ "node": "Repondre sur Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": {}
+}
