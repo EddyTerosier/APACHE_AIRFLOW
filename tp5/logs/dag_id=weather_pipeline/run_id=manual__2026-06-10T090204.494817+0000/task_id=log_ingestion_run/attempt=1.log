@@ -1,0 +1,25 @@
+[2026-06-10T09:02:15.422+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-10T09:02:15.453+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.log_ingestion_run manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:02:15.461+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.log_ingestion_run manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:02:15.462+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2026-06-10T09:02:15.474+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): log_ingestion_run> on 2026-06-10 09:02:04.494817+00:00
+[2026-06-10T09:02:15.481+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=361) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-10T09:02:15.480+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'log_ingestion_run', 'manual__2026-06-10T09:02:04.494817+00:00', '--job-id', '12', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpjtk2oua5']
+[2026-06-10T09:02:15.482+0000] {standard_task_runner.py:63} INFO - Started process 362 to run task
+[2026-06-10T09:02:15.482+0000] {standard_task_runner.py:91} INFO - Job 12: Subtask log_ingestion_run
+[2026-06-10T09:02:15.524+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.log_ingestion_run manual__2026-06-10T09:02:04.494817+00:00 [running]> on host 4c04ba30613b
+[2026-06-10T09:02:15.599+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='log_ingestion_run' AIRFLOW_CTX_EXECUTION_DATE='2026-06-10T09:02:04.494817+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-06-10T09:02:04.494817+00:00'
+[2026-06-10T09:02:15.600+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-10T09:02:15.654+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:02:15.659+0000] {sql.py:470} INFO - Running statement: INSERT INTO technical.ingestion_runs
+    (run_id, source, data_interval_start, data_interval_end,
+     started_at, ended_at, status, records_received, records_inserted)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);, parameters: ('manual__2026-06-10T09:02:04.494817+00:00', 'open-meteo', DateTime(2026, 6, 9, 6, 0, 0, tzinfo=Timezone('UTC')), DateTime(2026, 6, 10, 6, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2026, 6, 10, 9, 2, 4, 638136, tzinfo=Timezone('UTC')), datetime.datetime(2026, 6, 10, 9, 2, 15, 644356), 'success', 3, 3)
+[2026-06-10T09:02:15.660+0000] {sql.py:479} INFO - Rows affected: 1
+[2026-06-10T09:02:15.662+0000] {db.py:132} INFO - Run tracé — run_id=manual__2026-06-10T09:02:04.494817+00:00 | status=success
+[2026-06-10T09:02:15.662+0000] {python.py:237} INFO - Done. Returned value was: None
+[2026-06-10T09:02:15.663+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-10T09:02:15.672+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=***_pipeline, task_id=log_ingestion_run, run_id=manual__2026-06-10T09:02:04.494817+00:00, execution_date=20260610T090204, start_date=20260610T090215, end_date=20260610T090215
+[2026-06-10T09:02:15.695+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-06-10T09:02:15.710+0000] {taskinstance.py:3498} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-06-10T09:02:15.712+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

@@ -1,0 +1,44 @@
+[2026-06-10T09:33:14.132+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-10T09:33:14.175+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:33:14.184+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:33:14.185+0000] {taskinstance.py:2306} INFO - Starting attempt 2 of 4
+[2026-06-10T09:33:14.200+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): extract_api_payload> on 2026-06-10 09:02:04.494817+00:00
+[2026-06-10T09:33:14.208+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=1655) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-10T09:33:14.208+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'extract_api_payload', 'manual__2026-06-10T09:02:04.494817+00:00', '--job-id', '19', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpmd6krs7v']
+[2026-06-10T09:33:14.210+0000] {standard_task_runner.py:63} INFO - Started process 1656 to run task
+[2026-06-10T09:33:14.210+0000] {standard_task_runner.py:91} INFO - Job 19: Subtask extract_api_payload
+[2026-06-10T09:33:14.255+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.extract_api_payload manual__2026-06-10T09:02:04.494817+00:00 [running]> on host 4c04ba30613b
+[2026-06-10T09:33:14.343+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='extract_api_payload' AIRFLOW_CTX_EXECUTION_DATE='2026-06-10T09:02:04.494817+00:00' AIRFLOW_CTX_TRY_NUMBER='2' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-06-10T09:02:04.494817+00:00'
+[2026-06-10T09:33:14.344+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-10T09:33:14.363+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Paris
+[2026-06-10T09:33:14.497+0000] {extract.py:49} INFO - Payload reçu pour Paris
+[2026-06-10T09:33:14.498+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Lyon
+[2026-06-10T09:33:14.581+0000] {extract.py:49} INFO - Payload reçu pour Lyon
+[2026-06-10T09:33:14.582+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Marseille
+[2026-06-10T09:33:14.673+0000] {extract.py:49} INFO - Payload reçu pour Marseille
+[2026-06-10T09:33:14.674+0000] {extract.py:51} INFO - Extraction terminée — 3 villes
+[2026-06-10T09:33:14.682+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:33:14.687+0000] {sql.py:470} INFO - Running statement: DELETE FROM bronze.raw_***_payloads WHERE run_id = %s, parameters: ('manual__2026-06-10T09:02:04.494817+00:00',)
+[2026-06-10T09:33:14.689+0000] {sql.py:479} INFO - Rows affected: 3
+[2026-06-10T09:33:14.699+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:33:14.705+0000] {sql.py:470} INFO - Running statement: INSERT INTO bronze.raw_***_payloads
+    (run_id, city, latitude, longitude, payload_json)
+VALUES (%s, %s, %s, %s, %s);, parameters: ('manual__2026-06-10T09:02:04.494817+00:00', 'Paris', 48.8566, 2.3522, '{"latitude": 48.86, "longitude": 2.3599997, "generationtime_ms": 0.06270408630371094, "utc_offset_seconds": 0, "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 36.0, "current_units": {"time": "iso8601", "interval": "seconds", "temperature_2m": "\\u00b0C", "relative_humidity_2m": "%", "wind_speed_10m": "km/h", "precipitation": "mm"}, "current": {"time": "2026-06-10T09:30", "interval": 900, "temperature_2m": 15.8, "relative_humidity_2m": 54, "wind_speed_10m": 12.6, "precipitation": 0.0}}')
+[2026-06-10T09:33:14.707+0000] {sql.py:479} INFO - Rows affected: 1
+[2026-06-10T09:33:14.717+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:33:14.721+0000] {sql.py:470} INFO - Running statement: INSERT INTO bronze.raw_***_payloads
+    (run_id, city, latitude, longitude, payload_json)
+VALUES (%s, %s, %s, %s, %s);, parameters: ('manual__2026-06-10T09:02:04.494817+00:00', 'Lyon', 45.764, 4.8357, '{"latitude": 45.760002, "longitude": 4.8399997, "generationtime_ms": 0.10442733764648438, "utc_offset_seconds": 0, "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 184.0, "current_units": {"time": "iso8601", "interval": "seconds", "temperature_2m": "\\u00b0C", "relative_humidity_2m": "%", "wind_speed_10m": "km/h", "precipitation": "mm"}, "current": {"time": "2026-06-10T09:30", "interval": 900, "temperature_2m": 17.7, "relative_humidity_2m": 51, "wind_speed_10m": 13.6, "precipitation": 0.0}}')
+[2026-06-10T09:33:14.723+0000] {sql.py:479} INFO - Rows affected: 1
+[2026-06-10T09:33:14.733+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:33:14.737+0000] {sql.py:470} INFO - Running statement: INSERT INTO bronze.raw_***_payloads
+    (run_id, city, latitude, longitude, payload_json)
+VALUES (%s, %s, %s, %s, %s);, parameters: ('manual__2026-06-10T09:02:04.494817+00:00', 'Marseille', 43.2965, 5.3698, '{"latitude": 43.3, "longitude": 5.369999, "generationtime_ms": 0.07212162017822266, "utc_offset_seconds": 0, "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 6.0, "current_units": {"time": "iso8601", "interval": "seconds", "temperature_2m": "\\u00b0C", "relative_humidity_2m": "%", "wind_speed_10m": "km/h", "precipitation": "mm"}, "current": {"time": "2026-06-10T09:30", "interval": 900, "temperature_2m": 22.6, "relative_humidity_2m": 38, "wind_speed_10m": 29.9, "precipitation": 0.0}}')
+[2026-06-10T09:33:14.738+0000] {sql.py:479} INFO - Rows affected: 1
+[2026-06-10T09:33:14.739+0000] {db.py:56} INFO - Bronze — 3 payloads insérés (run_id=manual__2026-06-10T09:02:04.494817+00:00)
+[2026-06-10T09:33:14.751+0000] {python.py:237} INFO - Done. Returned value was: None
+[2026-06-10T09:33:14.752+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-10T09:33:14.760+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=***_pipeline, task_id=extract_api_payload, run_id=manual__2026-06-10T09:02:04.494817+00:00, execution_date=20260610T090204, start_date=20260610T093314, end_date=20260610T093314
+[2026-06-10T09:33:14.784+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-06-10T09:33:14.812+0000] {taskinstance.py:3498} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-06-10T09:33:14.813+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

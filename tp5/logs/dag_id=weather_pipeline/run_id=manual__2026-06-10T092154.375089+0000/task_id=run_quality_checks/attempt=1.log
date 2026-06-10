@@ -1,0 +1,28 @@
+[2026-06-10T09:21:58.143+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-10T09:21:58.174+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.run_quality_checks manual__2026-06-10T09:21:54.375089+00:00 [queued]>
+[2026-06-10T09:21:58.181+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.run_quality_checks manual__2026-06-10T09:21:54.375089+00:00 [queued]>
+[2026-06-10T09:21:58.182+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2026-06-10T09:21:58.192+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): run_quality_checks> on 2026-06-10 09:21:54.375089+00:00
+[2026-06-10T09:21:58.202+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=1180) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-10T09:21:58.202+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'run_quality_checks', 'manual__2026-06-10T09:21:54.375089+00:00', '--job-id', '15', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpu5rmhlak']
+[2026-06-10T09:21:58.203+0000] {standard_task_runner.py:63} INFO - Started process 1181 to run task
+[2026-06-10T09:21:58.203+0000] {standard_task_runner.py:91} INFO - Job 15: Subtask run_quality_checks
+[2026-06-10T09:21:58.241+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.run_quality_checks manual__2026-06-10T09:21:54.375089+00:00 [running]> on host 4c04ba30613b
+[2026-06-10T09:21:58.316+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='run_quality_checks' AIRFLOW_CTX_EXECUTION_DATE='2026-06-10T09:21:54.375089+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-06-10T09:21:54.375089+00:00'
+[2026-06-10T09:21:58.317+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-10T09:21:58.336+0000] {quality.py:87} WARNING - Contrôle qualité échoué — 3 anomalie(s) détectée(s)
+[2026-06-10T09:21:58.337+0000] {quality.py:89} WARNING -   - Température hors plage pour Paris : 15.8°C
+[2026-06-10T09:21:58.338+0000] {quality.py:89} WARNING -   - Température hors plage pour Lyon : 17.5°C
+[2026-06-10T09:21:58.338+0000] {quality.py:89} WARNING -   - Température hors plage pour Marseille : 22.3°C
+[2026-06-10T09:21:58.348+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:21:58.353+0000] {sql.py:470} INFO - Running statement: INSERT INTO technical.data_quality_results
+    (run_id, status, records_checked, anomaly_count, detail)
+VALUES (%s, %s, %s, %s, %s);, parameters: ('manual__2026-06-10T09:21:54.375089+00:00', 'failed', 3, 3, 'Température hors plage pour Paris : 15.8°C; Température hors plage pour Lyon : 17.5°C; Température hors plage pour Marseille : 22.3°C')
+[2026-06-10T09:21:58.354+0000] {sql.py:479} INFO - Rows affected: 1
+[2026-06-10T09:21:58.355+0000] {db.py:109} INFO - Qualité tracée — run_id=manual__2026-06-10T09:21:54.375089+00:00 | status=failed | anomalies=3
+[2026-06-10T09:21:58.366+0000] {python.py:237} INFO - Done. Returned value was: None
+[2026-06-10T09:21:58.367+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-10T09:21:58.375+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=***_pipeline, task_id=run_quality_checks, run_id=manual__2026-06-10T09:21:54.375089+00:00, execution_date=20260610T092154, start_date=20260610T092158, end_date=20260610T092158
+[2026-06-10T09:21:58.417+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-06-10T09:21:58.439+0000] {taskinstance.py:3498} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-06-10T09:21:58.441+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

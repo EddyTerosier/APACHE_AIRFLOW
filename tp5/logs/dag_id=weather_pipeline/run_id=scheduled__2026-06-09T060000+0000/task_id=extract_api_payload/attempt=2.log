@@ -1,0 +1,58 @@
+[2026-06-10T09:00:10.638+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-10T09:00:10.668+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload scheduled__2026-06-09T06:00:00+00:00 [queued]>
+[2026-06-10T09:00:10.675+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.extract_api_payload scheduled__2026-06-09T06:00:00+00:00 [queued]>
+[2026-06-10T09:00:10.676+0000] {taskinstance.py:2306} INFO - Starting attempt 2 of 3
+[2026-06-10T09:00:10.687+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): extract_api_payload> on 2026-06-09 06:00:00+00:00
+[2026-06-10T09:00:10.694+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=257) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-10T09:00:10.693+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'extract_api_payload', 'scheduled__2026-06-09T06:00:00+00:00', '--job-id', '3', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpqjexe9y3']
+[2026-06-10T09:00:10.695+0000] {standard_task_runner.py:63} INFO - Started process 258 to run task
+[2026-06-10T09:00:10.695+0000] {standard_task_runner.py:91} INFO - Job 3: Subtask extract_api_payload
+[2026-06-10T09:00:10.738+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.extract_api_payload scheduled__2026-06-09T06:00:00+00:00 [running]> on host 4c04ba30613b
+[2026-06-10T09:00:10.811+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='extract_api_payload' AIRFLOW_CTX_EXECUTION_DATE='2026-06-09T06:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='2' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-06-09T06:00:00+00:00'
+[2026-06-10T09:00:10.812+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-10T09:00:10.830+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Paris
+[2026-06-10T09:00:14.694+0000] {extract.py:49} INFO - Payload reçu pour Paris
+[2026-06-10T09:00:14.695+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Lyon
+[2026-06-10T09:00:18.762+0000] {extract.py:49} INFO - Payload reçu pour Lyon
+[2026-06-10T09:00:18.763+0000] {extract.py:28} INFO - Appel API Open-Meteo pour Marseille
+[2026-06-10T09:00:22.193+0000] {extract.py:49} INFO - Payload reçu pour Marseille
+[2026-06-10T09:00:22.194+0000] {extract.py:51} INFO - Extraction terminée — 3 villes
+[2026-06-10T09:00:22.203+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-10T09:00:22.212+0000] {taskinstance.py:2905} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 460, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 432, in _execute_callable
+    return execute_callable(context=context, **execute_callable_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 400, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 235, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 252, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/weather_pipeline.py", line 55, in extract_api_payload
+    db.insert_bronze(run_id, payloads)
+  File "/opt/airflow/dags/../include/db.py", line 39, in insert_bronze
+    hook.run(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/providers/common/sql/hooks/sql.py", line 411, in run
+    with closing(self.get_conn()) as conn:
+                 ^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/providers/postgres/hooks/postgres.py", line 131, in get_conn
+    conn = deepcopy(self.connection or self.get_connection(conn_id))
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/hooks/base.py", line 83, in get_connection
+    conn = Connection.get_connection_from_secrets(conn_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/connection.py", line 519, in get_connection_from_secrets
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+airflow.exceptions.AirflowNotFoundException: The conn_id `weather_postgres` isn't defined
+[2026-06-10T09:00:22.221+0000] {taskinstance.py:1206} INFO - Marking task as UP_FOR_RETRY. dag_id=weather_pipeline, task_id=extract_api_payload, run_id=scheduled__2026-06-09T06:00:00+00:00, execution_date=20260609T060000, start_date=20260610T090010, end_date=20260610T090022
+[2026-06-10T09:00:22.229+0000] {standard_task_runner.py:110} ERROR - Failed to execute job 3 for task extract_api_payload (The conn_id `weather_postgres` isn't defined; 258)
+[2026-06-10T09:00:22.253+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 1
+[2026-06-10T09:00:22.273+0000] {taskinstance.py:3498} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-06-10T09:00:22.275+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

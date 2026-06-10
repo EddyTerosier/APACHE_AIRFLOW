@@ -1,0 +1,43 @@
+[2026-06-10T09:02:11.983+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-06-10T09:02:12.012+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: weather_pipeline.load_gold_metrics manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:02:12.020+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: weather_pipeline.load_gold_metrics manual__2026-06-10T09:02:04.494817+00:00 [queued]>
+[2026-06-10T09:02:12.021+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 3
+[2026-06-10T09:02:12.031+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): load_gold_metrics> on 2026-06-10 09:02:04.494817+00:00
+[2026-06-10T09:02:12.037+0000] {logging_mixin.py:188} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61 DeprecationWarning: This process (pid=359) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-06-10T09:02:12.037+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'weather_pipeline', 'load_gold_metrics', 'manual__2026-06-10T09:02:04.494817+00:00', '--job-id', '11', '--raw', '--subdir', 'DAGS_FOLDER/weather_pipeline.py', '--cfg-path', '/tmp/tmpd1w6k6cs']
+[2026-06-10T09:02:12.038+0000] {standard_task_runner.py:63} INFO - Started process 360 to run task
+[2026-06-10T09:02:12.038+0000] {standard_task_runner.py:91} INFO - Job 11: Subtask load_gold_metrics
+[2026-06-10T09:02:12.081+0000] {task_command.py:426} INFO - Running <TaskInstance: weather_pipeline.load_gold_metrics manual__2026-06-10T09:02:04.494817+00:00 [running]> on host 4c04ba30613b
+[2026-06-10T09:02:12.166+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data-team' AIRFLOW_CTX_DAG_ID='weather_pipeline' AIRFLOW_CTX_TASK_ID='load_gold_metrics' AIRFLOW_CTX_EXECUTION_DATE='2026-06-10T09:02:04.494817+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-06-10T09:02:04.494817+00:00'
+[2026-06-10T09:02:12.167+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-06-10T09:02:12.195+0000] {base.py:84} INFO - Using connection ID '***_postgres' for task execution.
+[2026-06-10T09:02:12.200+0000] {sql.py:470} INFO - Running statement: -- Recalcule les agrégats journaliers à partir de silver (source de vérité)
+-- et les upserte. Idempotent grâce à ON CONFLICT (city, observation_date).
+INSERT INTO gold.***_daily_city
+    (city, observation_date, avg_temperature, max_wind_speed,
+     total_precipitation, run_id)
+SELECT
+    city,
+    DATE(observed_at)                            AS observation_date,
+    ROUND(AVG(temperature_celsius)::numeric, 2)  AS avg_temperature,
+    MAX(wind_speed_kmh)                          AS max_wind_speed,
+    SUM(precipitation_mm)                        AS total_precipitation,
+    %s                                           AS run_id
+FROM silver.***_observations
+WHERE DATE(observed_at) = CURRENT_DATE
+GROUP BY city, DATE(observed_at)
+ON CONFLICT (city, observation_date)
+DO UPDATE SET
+    avg_temperature     = EXCLUDED.avg_temperature,
+    max_wind_speed      = EXCLUDED.max_wind_speed,
+    total_precipitation = EXCLUDED.total_precipitation,
+    run_id              = EXCLUDED.run_id,
+    updated_at          = NOW();, parameters: ('manual__2026-06-10T09:02:04.494817+00:00',)
+[2026-06-10T09:02:12.203+0000] {sql.py:479} INFO - Rows affected: 3
+[2026-06-10T09:02:12.204+0000] {db.py:98} INFO - Gold — agrégats journaliers upsertés (run_id=manual__2026-06-10T09:02:04.494817+00:00)
+[2026-06-10T09:02:12.205+0000] {python.py:237} INFO - Done. Returned value was: None
+[2026-06-10T09:02:12.206+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-06-10T09:02:12.215+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=***_pipeline, task_id=load_gold_metrics, run_id=manual__2026-06-10T09:02:04.494817+00:00, execution_date=20260610T090204, start_date=20260610T090212, end_date=20260610T090212
+[2026-06-10T09:02:12.251+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-06-10T09:02:12.267+0000] {taskinstance.py:3498} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-06-10T09:02:12.269+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
